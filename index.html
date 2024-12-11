@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graf dan Pohon Interaktif</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+  <style>
+    canvas {
+      display: block;
+      margin: 20px auto; /* Untuk memindahkan graf ke tengah */
+      border: 1px solid black;
+    }
+    input, button {
+      margin: 10px;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Graf dan Pohon Interaktif</h1>
+  <div>
+    <label for="node">Masukkan Simpul (x,y):</label>
+    <input id="node" type="text" placeholder="Contoh: 0,0">
+    <button onclick="findShortestPath()">Lintasan Terpendek</button>
+    <button onclick="findMST()">Pohon Merentang Minimum</button>
+    <button onclick="findHamiltonian()">Sirkuit Hamilton</button>
+  </div>
+  <div id="output" style="margin-top: 20px;"></div>
+
+  <script>
+    const GRID_SIZE = 9; // 9x9 grid
+    const adjacencyList = {};
+
+    let pathEdges = [];
+
+    function setup() {
+      createCanvas(600, 600);
+      let spacing = (width - 100) / (GRID_SIZE - 1); // Spasi lebih kecil untuk membuat graf lebih tengah
+
+      // Buat adjacency list untuk graf
+      for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+          const current = `${x},${y}`;
+          adjacencyList[current] = [];
+          if (x < GRID_SIZE - 1) adjacencyList[current].push(`${x + 1},${y}`);
+          if (y < GRID_SIZE - 1) adjacencyList[current].push(`${x},${y + 1}`);
+          if (x > 0) adjacencyList[current].push(`${x - 1},${y}`);
+          if (y > 0) adjacencyList[current].push(`${x},${y - 1}`);
+        }
+      }
+    }
+
+    function draw() {
+      background(255);
+      let spacing = (width - 100) / (GRID_SIZE - 1);
+      translate(50, 50); // Pindahkan graf lebih ke tengah
+
+      // Gambar sisi
+      stroke(200);
+      for (let node in adjacencyList) {
+        let [x, y] = node.split(',').map(Number);
+        for (let neighbor of adjacencyList[node]) {
+          let [nx, ny] = neighbor.split(',').map(Number);
+          line(x * spacing, y * spacing, nx * spacing, ny * spacing);
+        }
+      }
+
+      // Gambar sisi hasil jalur (berwarna biru)
+      stroke(0, 0, 255);
+      strokeWeight(2);
+      for (let [start, end] of pathEdges) {
+        let [x1, y1] = start.split(',').map(Number);
+        let [x2, y2] = end.split(',').map(Number);
+        line(x1 * spacing, y1 * spacing, x2 * spacing, y2 * spacing);
+      }
+
+      // Gambar simpul
+      fill(0);
+      noStroke();
+      textAlign(CENTER, CENTER);
+      textSize(10);
+      for (let node in adjacencyList) {
+        let [x, y] = node.split(',').map(Number);
+        ellipse(x * spacing, y * spacing, 10, 10); // Lingkaran simpul
+        fill(50);
+        text(node, x * spacing, y * spacing - 12); // Label simpul
+        fill(0);
+      }
+    }
+
+    function validateInput(input) {
+      if (!/^\d+,\d+$/.test(input)) return false;
+      const [x, y] = input.split(',').map(Number);
+      return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
+    }
+
+    function findShortestPath() {
+      const input = document.getElementById("node").value.trim();
+      if (!validateInput(input)) {
+        alert("Input tidak valid! Pastikan formatnya adalah 'x,y' dan berada dalam grid.");
+        return;
+      }
+
+      pathEdges = [];
+      const queue = [input];
+      const visited = { [input]: null };
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+        for (let neighbor of adjacencyList[current] || []) {
+          if (!visited[neighbor]) {
+            visited[neighbor] = current;
+            queue.push(neighbor);
+            pathEdges.push([current, neighbor]);
+          }
+        }
+      }
+
+      document.getElementById("output").innerText = `Lintasan Terpendek dari ${input}: ${Object.keys(visited).join(' -> ')}`;
+    }
+
+    function findMST() {
+  const input = document.getElementById("node").value.trim();
+  if (!validateInput(input)) {
+    alert("Input tidak valid! Pastikan formatnya adalah 'x,y' dan berada dalam grid.");
+    return;
+  }
+
+  const mstEdges = [];
+  const visited = new Set();
+  const edges = [];
+
+  pathEdges = [];
+  visited.add(input); // Mulai dari simpul input pengguna
+  for (let neighbor of adjacencyList[input]) {
+    edges.push([input, neighbor]);
+  }
+
+  while (visited.size < GRID_SIZE * GRID_SIZE && edges.length > 0) {
+    // Urutkan sisi berdasarkan prioritas sederhana (misalnya, urutan alfabet)
+    edges.sort((a, b) => a[1].localeCompare(b[1]));
+    const [u, v] = edges.shift();
+    if (!visited.has(v)) {
+      visited.add(v);
+      mstEdges.push([u, v]);
+      pathEdges.push([u, v]); // Tambahkan ke jalur yang digambar
+      for (let neighbor of adjacencyList[v]) {
+        if (!visited.has(neighbor)) edges.push([v, neighbor]);
+      }
+    }
+  }
+
+  if (mstEdges.length === 0) {
+    document.getElementById("output").innerText = `Tidak ada pohon merentang minimum dari simpul ${input}.`;
+  } else {
+    document.getElementById("output").innerText = `Pohon Merentang Minimum: ${mstEdges.map(edge => edge.join(' -> ')).join(', ')}`;
+  }
+}
+
+    function findHamiltonian() {
+      const path = [];
+      const visited = new Set();
+      pathEdges = [];
+
+      function dfs(node) {
+        if (visited.size === GRID_SIZE * GRID_SIZE) return true;
+        for (let neighbor of adjacencyList[node]) {
+          if (!visited.has(neighbor)) {
+            visited.add(neighbor);
+            path.push(neighbor);
+            pathEdges.push([node, neighbor]);
+            if (dfs(neighbor)) return true;
+            path.pop();
+            pathEdges.pop();
+            visited.delete(neighbor);
+          }
+        }
+        return false;
+      }
+
+      const start = "0,0";
+      visited.add(start);
+      path.push(start);
+      if (dfs(start)) {
+        document.getElementById("output").innerText = `Sirkuit Hamilton: ${path.join(' -> ')}`;
+      } else {
+        pathEdges = [];
+        document.getElementById("output").innerText = "Tidak ada Sirkuit Hamilton!";
+      }
+    }
+  </script>
+</body>
+</html>
